@@ -12,6 +12,10 @@ except ImportError:
     from .decision_layer import DecisionLayer
     from .report_generator import ReportGenerator
     from .supabase_client import get_supabase
+try:
+    from extras_client import extras_client
+except ImportError:
+    from .extras_client import extras_client
 import uvicorn
 
 app = FastAPI(title="MedAssist v2 API")
@@ -42,6 +46,12 @@ class SymptomInput(BaseModel):
 class ChatInput(BaseModel):
     message: str
     history: list = []
+
+class DictionaryInput(BaseModel):
+    term: str
+
+class MedicineInput(BaseModel):
+    name: str
 
 @app.get("/")
 def read_root():
@@ -131,6 +141,20 @@ async def chat(data: ChatInput):
         "reply": result["reply"],
         "suggestions": result.get("suggestions", [])
     }
+
+@app.post("/dictionary")
+async def lookup_dictionary(data: DictionaryInput):
+    res = await extras_client.get_dictionary_definition(data.term)
+    if "error" in res:
+        raise HTTPException(status_code=500, detail=res["error"])
+    return res
+
+@app.post("/medicine")
+async def lookup_medicine(data: MedicineInput):
+    res = await extras_client.get_medicine_info(data.name)
+    if "error" in res:
+        raise HTTPException(status_code=500, detail=res["error"])
+    return res
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

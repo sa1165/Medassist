@@ -1603,3 +1603,211 @@ footer {
     border-radius: 0;
   }
 }
+
+/* Extra Views (Dictionary & Medicine) */
+.extra-view-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 4rem 2rem;
+  width: 100%;
+  overflow-y: auto;
+}
+
+.extra-header {
+  margin-bottom: 3rem;
+  text-align: center;
+}
+
+.extra-title {
+  font-size: 2.5rem;
+  font-weight: 900;
+  color: #0f172a;
+  margin-bottom: 1rem;
+}
+
+.extra-description {
+  color: var(--text-muted);
+  font-size: 1.1rem;
+}
+
+.extra-search-box {
+  background: white;
+  padding: 0.5rem;
+  border-radius: 20px;
+  border: 1px solid var(--border-color);
+  display: flex;
+  gap: 0.5rem;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+  margin-bottom: 4rem;
+}
+
+.extra-search-box input {
+  flex: 1;
+  border: none;
+  padding: 1rem 1.5rem;
+  font-size: 1.1rem;
+  outline: none;
+  background: transparent;
+}
+
+.btn-extra-search {
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 0 2rem;
+  border-radius: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-extra-search:hover {
+  background: var(--primary-hover);
+}
+
+/* Dictionary Results */
+.dict-result-card {
+  background: white;
+  border-radius: 24px;
+  border: 1px solid var(--border-color);
+  padding: 3rem;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.04);
+}
+
+.dict-term-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  border-bottom: 2px solid var(--bg-light);
+  padding-bottom: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.dict-term {
+  font-size: 2.25rem;
+  font-weight: 900;
+  margin: 0;
+  color: var(--primary);
+  text-transform: capitalize;
+}
+
+.dict-phonetic {
+  font-family: monospace;
+  color: var(--text-muted);
+  font-size: 1.1rem;
+}
+
+.dict-section {
+  margin-bottom: 2rem;
+}
+
+.dict-section-label {
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  margin-bottom: 0.75rem;
+}
+
+.dict-text {
+  font-size: 1.1rem;
+  line-height: 1.7;
+  color: #334155;
+  margin: 0;
+}
+
+.dict-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.dict-tag {
+  background: #f1f5f9;
+  padding: 0.5rem 1rem;
+  border-radius: 50px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--primary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.dict-tag:hover {
+  background: var(--primary);
+  color: white;
+}
+
+/* Medicine Results */
+.med-result-card {
+  background: white;
+  border-radius: 24px;
+  border: 1px solid var(--border-color);
+  padding: 3rem;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.04);
+}
+
+.med-title {
+  font-size: 2.25rem;
+  font-weight: 900;
+  margin-bottom: 1rem;
+  color: #0f172a;
+}
+
+.med-overview {
+  font-size: 1.1rem;
+  line-height: 1.6;
+  color: var(--text-muted);
+  margin-bottom: 2.5rem;
+}
+
+.med-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  margin-bottom: 2.5rem;
+}
+
+.med-info-box {
+  background: #f8fafc;
+  padding: 1.5rem;
+  border-radius: 16px;
+}
+
+.med-list-section {
+  margin-bottom: 2rem;
+}
+
+.med-list-section.warning {
+  border: 1px solid #fee2e2;
+  background: #fef2f2;
+  padding: 1.5rem;
+  border-radius: 16px;
+}
+
+.med-list-section.warning .dict-section-label {
+  color: #dc2626;
+}
+
+.med-list {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.med-list li {
+  margin-bottom: 0.5rem;
+  line-height: 1.5;
+}
+
+/* Sidebar Active State Fix */
+.sidebar-icon-btn.active {
+  background: var(--primary);
+  color: white;
+}
+.sidebar-nav-item.active {
+  background: #d1e9f0;
+  color: var(--primary);
+  font-weight: 700;
+}

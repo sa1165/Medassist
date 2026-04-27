@@ -119,7 +119,7 @@ const ASSOCIATED_OPTIONS = [
 
 function App() {
   const [showSplash, setShowSplash] = useState(true);
-  const [view, setView] = useState<'portfolio' | 'login' | 'register' | 'app'>('portfolio');
+  const [view, setView] = useState<'portfolio' | 'login' | 'register' | 'app' | 'dictionary' | 'medicine'>('portfolio');
   const [user, setUser] = useState<any>(null);
   const [step, setStep] = useState(0); // 0 is Home, 1-6 are triage steps
   const [data, setData] = useState<SymptomData>(INITIAL_DATA);
@@ -141,6 +141,15 @@ function App() {
   const [isTyping, setIsTyping] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Extras states
+  const [dictTerm, setDictTerm] = useState('');
+  const [dictResult, setDictResult] = useState<any>(null);
+  const [medName, setMedName] = useState('');
+  const [medResult, setMedResult] = useState<any>(null);
+  const [showMedicineModal, setShowMedicineModal] = useState(false);
+  const [showDictModal, setShowDictModal] = useState(false);
+  const [recentMedSearches, setRecentMedSearches] = useState<string[]>([]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -270,6 +279,54 @@ function App() {
     }
   };
 
+  const lookupDictionary = async (term?: string) => {
+    const search = term || dictTerm.trim();
+    if (!search) return;
+    setLoading(true);
+    setDictTerm(search);
+    try {
+      const res = await fetch('http://localhost:8000/dictionary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ term: search }),
+      });
+      const json = await res.json();
+      setDictResult(json);
+    } catch (err) {
+      alert("Error: " + err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const lookupMedicine = async (name?: string) => {
+    const search = (name || medName).trim();
+    if (!search) return;
+    setLoading(true);
+    setMedResult(null);
+    setMedName(search);
+    try {
+      const res = await fetch('http://localhost:8000/medicine', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: search }),
+      });
+      const json = await res.json();
+      setMedResult(json);
+      // Track recent searches (only on success)
+      if (!json.error) {
+        setRecentMedSearches(prev => {
+          const updated = [search, ...prev.filter(s => s.toLowerCase() !== search.toLowerCase())];
+          return updated.slice(0, 5);
+        });
+      }
+    } catch (err) {
+      setMedResult({ error: 'Could not connect to MedAssist server. Please ensure the backend is running.' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const reset = () => {
     setResult(null);
     setData(INITIAL_DATA);
@@ -370,8 +427,8 @@ function App() {
     );
   }
 
-  // Chat layout for logged-in users
-  if (view === 'app' && user) {
+  // Chat layout for logged-in users (all app views)
+  if (user && (view === 'app' || view === 'dictionary' || view === 'medicine')) {
     return (
       <div className="chat-layout">
         {sidebarOpen && <div className="sidebar-overlay visible" onClick={() => setSidebarOpen(false)} />}
@@ -390,7 +447,6 @@ function App() {
             <button className="sidebar-icon-btn" title="All chats">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
             </button>
-
             <div className="sidebar-icons-footer">
               <div className="sidebar-avatar" style={{width:32,height:32,fontSize:'0.75rem'}}>{user.email[0].toUpperCase()}</div>
             </div>
@@ -407,9 +463,13 @@ function App() {
               </button>
             </div>
             <div className="sidebar-nav-items">
-              <div className="sidebar-nav-item active" onClick={startNewChat}>
+              <div className="sidebar-nav-item" onClick={startNewChat} style={{ color: 'var(--primary)', fontWeight: 700 }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
-                New chat
+                New Chat
+              </div>
+              <div className={`sidebar-nav-item ${view === 'app' ? 'active' : ''}`} onClick={() => { setView('app'); setStep(0); }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                Chat Assistant
               </div>
             </div>
             <div className="sidebar-search-container">
@@ -467,7 +527,8 @@ function App() {
             </div>
           </header>
 
-          {step > 0 ? (
+          {/* ---- Chat / Triage view ---- */}
+          {view === 'app' && step > 0 && (
             <div className="chat-triage-container">
               <button className="btn-back-to-chat" onClick={() => { setStep(0); setResult(null); setData(INITIAL_DATA); }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7"></path></svg>
@@ -869,7 +930,10 @@ function App() {
           </div>
         )}
             </div>
-          ) : (
+          )}
+
+          {/* ---- Chat messages view ---- */}
+          {view === 'app' && step === 0 && (
             <>
               {chatMessages.length === 0 ? (
                 <div className="chat-empty-state">
@@ -899,11 +963,11 @@ function App() {
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
                       Start Symptom Analysis
                     </button>
-                    <button className="quick-action-chip" onClick={() => sendMessage('I want to know about medicine safety and common interactions.')}>
+                    <button className="quick-action-chip" onClick={() => setShowMedicineModal(true)}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"></path><path d="m8.5 8.5 7 7"></path></svg>
                       Know Your Medicine
                     </button>
-                    <button className="quick-action-chip" onClick={() => sendMessage('I need to look up a term in the medical dictionary.')}>
+                    <button className="quick-action-chip" onClick={() => setShowDictModal(true)}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
                       Medical Dictionary
                     </button>
@@ -932,11 +996,9 @@ function App() {
                                     onClick={() => {
                                       if (suggestion === "Start Symptom Analysis") {
                                         setShowExternalTriage(true);
-                                      } else if (suggestion === "Open Know Your Medicine") {
-                                        sendMessage("Tell me about the 'Know Your Medicine' tool and how I can use it.");
-                                        // You could also set a specific view/modal here if you have one
-                                      } else if (suggestion === "Use Medical Dictionary") {
-                                        sendMessage("I'd like to look up a term in the Medical Dictionary.");
+                                      } else if (suggestion === "Open Know Your Medicine" || suggestion === "Use Medical Dictionary") {
+                                          if (suggestion.includes("Medicine")) setShowMedicineModal(true);
+                                          else setShowDictModal(true);
                                       } else {
                                         sendMessage(suggestion);
                                       }
@@ -991,7 +1053,453 @@ function App() {
               )}
             </>
           )}
+
+          {/* ---- Dictionary view ---- */}
+          {view === 'dictionary' && (
+            <div className="extra-view-container fade-in">
+              <div className="extra-header">
+                <div className="section-tag">Medical Dictionary</div>
+                <h1 className="extra-title">Term Definitions</h1>
+                <p className="extra-description">Enter a medical term to get a simplified and clinical definition.</p>
+              </div>
+              <div className="extra-search-box">
+                <input 
+                  type="text" 
+                  placeholder="Search for a medical term (e.g., Encephalitis, Tachycardia)..." 
+                  value={dictTerm}
+                  onChange={(e) => setDictTerm(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && lookupDictionary()}
+                />
+                <button className="btn-extra-search" onClick={() => lookupDictionary()} disabled={loading}>
+                  {loading ? 'Searching...' : 'Search'}
+                </button>
+              </div>
+              
+              {dictResult && (
+                <div className="dict-result-card fade-in">
+                  <div className="dict-term-header">
+                    <h2 className="dict-term">{dictResult.term}</h2>
+                    <span className="dict-phonetic">{dictResult.phonetic}</span>
+                  </div>
+                  
+                  <div className="dict-section">
+                    <div className="dict-section-label">Simple Definition</div>
+                    <p className="dict-text">{dictResult.simple_definition}</p>
+                  </div>
+                  
+                  <div className="dict-section">
+                    <div className="dict-section-label">Clinical Context</div>
+                    <p className="dict-text">{dictResult.clinical_definition}</p>
+                  </div>
+                  
+                  <div className="dict-section">
+                    <div className="dict-section-label">Usage & Context</div>
+                    <p className="dict-text">{dictResult.context}</p>
+                  </div>
+                  
+                  {dictResult.related_terms && (
+                    <div className="dict-related">
+                      <div className="dict-section-label">Related Terms</div>
+                      <div className="dict-tags">
+                        {dictResult.related_terms.map((t: string) => (
+                          <span key={t} className="dict-tag" onClick={() => lookupDictionary(t)}>{t}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ---- Medicine view ---- */}
+          {view === 'medicine' && (
+            <div className="extra-view-container fade-in">
+              <div className="extra-header">
+                <div className="section-tag">Know Your Medicine</div>
+                <h1 className="extra-title">Medication Intelligence</h1>
+                <p className="extra-description">Search for any medicine to understand its mechanism, side effects, and precautions.</p>
+              </div>
+              <div className="extra-search-box">
+                <input 
+                  type="text" 
+                  placeholder="Enter medication name (e.g., Metformin, Amoxicillin)..." 
+                  value={medName}
+                  onChange={(e) => setMedName(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && lookupMedicine()}
+                />
+                <button className="btn-extra-search" onClick={() => lookupMedicine()} disabled={loading}>
+                  {loading ? 'Searching...' : 'Search'}
+                </button>
+              </div>
+              
+              {medResult && (
+                <div className="med-result-card fade-in">
+                  <h2 className="med-title">{medResult.medicine}</h2>
+                  <p className="med-overview">{medResult.overview}</p>
+                  
+                  <div className="med-grid">
+                    <div className="med-info-box">
+                      <div className="dict-section-label">Mechanism of Action</div>
+                      <p className="med-text">{medResult.mechanism}</p>
+                    </div>
+                    <div className="med-info-box">
+                      <div className="dict-section-label">Typical Dosage</div>
+                      <p className="med-text">{medResult.dosage_info}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="med-list-section">
+                    <div className="dict-section-label">Common Side Effects</div>
+                    <ul className="med-list">
+                      {medResult.side_effects.map((s: string) => <li key={s}>{s}</li>)}
+                    </ul>
+                  </div>
+                  
+                  <div className="med-list-section warning">
+                    <div className="dict-section-label">Critical Warnings</div>
+                    <ul className="med-list">
+                      {medResult.warnings.map((w: string) => <li key={w}>{w}</li>)}
+                    </ul>
+                  </div>
+                  
+                  {medResult.related_medicines && (
+                    <div className="dict-related">
+                      <div className="dict-section-label">Related / Alternatives</div>
+                      <div className="dict-tags">
+                        {medResult.related_medicines.map((m: string) => (
+                          <span key={m} className="dict-tag" onClick={() => lookupMedicine(m)}>{m}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
+
+
+        {/* ---- Know Your Medicine Modal ---- */}
+        {showMedicineModal && (
+          <div className="external-triage-overlay" onClick={(e) => { if (e.target === e.currentTarget) { setShowMedicineModal(false); setMedResult(null); setMedName(''); } }}>
+            <div className="external-triage-modal" style={{ maxWidth: '860px', height: 'auto', maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+              <div className="external-modal-header">
+                <div className="modal-brand">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"></path><path d="m8.5 8.5 7 7"></path></svg>
+                  <span>Know Your Medicine</span>
+                </div>
+                <button className="btn-close-external" onClick={() => { setShowMedicineModal(false); setMedResult(null); setMedName(''); }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                  Close
+                </button>
+              </div>
+              <div style={{ padding: '2.5rem', overflowY: 'auto', flex: 1 }}>
+                {!medResult ? (
+                  <>
+                    <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: '#f0f9fa', border: '1px solid #d1e9f0', padding: '0.4rem 1rem', borderRadius: '50px', fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 700, marginBottom: '1.5rem' }}>
+                        ⓘ MedAssist Module
+                      </div>
+                      <h2 style={{ fontSize: '2rem', fontWeight: 900, color: '#0f172a', marginBottom: '0.75rem' }}>Look up any medicine in seconds</h2>
+                      <p style={{ color: 'var(--text-muted)', maxWidth: '500px', margin: '0 auto', lineHeight: 1.6 }}>Search for usage, side effects, precautions, warnings and drug interactions — clearly organized and easy to understand.</p>
+                    </div>
+                    <div className="extra-search-box" style={{ marginBottom: '1.5rem' }}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2" style={{ marginLeft: '1rem', flexShrink: 0 }}><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                      <input
+                        type="text"
+                        placeholder="Search medicine name"
+                        value={medName}
+                        onChange={(e) => setMedName(e.target.value)}
+                        onKeyPress={(e) => e.key === 'Enter' && lookupMedicine()}
+                        autoFocus
+                      />
+                      <button className="btn-extra-search" onClick={() => lookupMedicine()} disabled={loading}>
+                        {loading ? 'Searching...' : 'Search'}
+                      </button>
+                    </div>
+                    <div style={{ textAlign: 'center', marginBottom: '2rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                      Popular:&nbsp;
+                      {['Paracetamol', 'Dolo 650', 'Amoxicillin', 'Cetirizine'].map(m => (
+                        <button key={m} onClick={() => lookupMedicine(m)} style={{ background: 'none', border: '1px solid var(--border-color)', borderRadius: '20px', padding: '0.25rem 0.75rem', marginRight: '0.5rem', cursor: 'pointer', fontSize: '0.8rem', color: 'var(--text-main)' }}>{m}</button>
+                      ))}
+                    </div>
+                    <div style={{ background: '#fffbf0', border: '1px solid #fde68a', borderRadius: '12px', padding: '1rem 1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2rem', fontSize: '0.9rem', color: '#92400e' }}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                      Always consult a doctor before taking medications.
+                    </div>
+                    <div style={{ fontWeight: 800, fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--text-muted)', marginBottom: '1rem' }}>Browse Medicines</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+                      {[
+                        { name: 'Paracetamol', sub: 'Acetaminophen 500mg' },
+                        { name: 'Dolo 650', sub: 'Paracetamol 650mg' },
+                        { name: 'Amoxicillin', sub: 'Amoxicillin 500mg' },
+                        { name: 'Cetirizine', sub: 'Cetirizine 10mg' },
+                        { name: 'Ibuprofen', sub: 'Ibuprofen 400mg' },
+                        { name: 'Azithromycin', sub: 'Azithromycin 500mg' },
+                      ].map(m => (
+                        <div key={m.name} onClick={() => lookupMedicine(m.name)} style={{ border: '1px solid var(--border-color)', borderRadius: '14px', padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer', background: 'white', transition: 'all 0.2s' }}
+                          onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 4px 12px rgba(4,135,175,0.1)')}
+                          onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}>
+                          <div style={{ width: 38, height: 38, background: '#e8f7f9', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2"><path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"></path><path d="m8.5 8.5 7 7"></path></svg>
+                          </div>
+                          <div>
+                            <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>{m.name}</div>
+                            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{m.sub}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : medResult.error ? (
+                  <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
+                    <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>💊</div>
+                    <p style={{ color: '#dc2626', fontWeight: 600, marginBottom: '1rem' }}>{medResult.error}</p>
+                    <button onClick={() => { setMedResult(null); setMedName(''); }} style={{ background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '10px', padding: '0.6rem 1.5rem', cursor: 'pointer', fontWeight: 600 }}>← Try Again</button>
+                  </div>
+                ) : (
+                  <div className="fade-in">
+                    {/* Recent searches */}
+                    {recentMedSearches.length > 0 && (
+                      <div style={{ marginBottom: '1.5rem' }}>
+                        <div style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.6rem' }}>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                          Recent Searches
+                        </div>
+                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                          {recentMedSearches.slice(0, 5).map(s => (
+                            <button key={s} onClick={() => lookupMedicine(s)} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'white', border: '1px solid var(--border-color)', borderRadius: '20px', padding: '0.3rem 0.9rem', cursor: 'pointer', fontSize: '0.82rem', color: 'var(--text-main)' }}>
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2"><path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"></path></svg>
+                              {s}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Medicine header card */}
+                    <div style={{ border: '1px solid var(--border-color)', borderRadius: '16px', padding: '1.5rem', marginBottom: '1.25rem', background: 'white' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                          <div style={{ width: 52, height: 52, background: 'linear-gradient(135deg, var(--primary), var(--accent))', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"></path><path d="m8.5 8.5 7 7"></path></svg>
+                          </div>
+                          <div>
+                            <h2 style={{ margin: 0, fontSize: '1.6rem', fontWeight: 900, color: '#0f172a' }}>{medResult.medicine}</h2>
+                            <div style={{ color: 'var(--text-muted)', fontSize: '0.88rem', marginTop: '0.2rem' }}>{medResult.subtitle}</div>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                          {medResult.tags?.map((tag: string) => (
+                            <span key={tag} style={{ background: '#f0f9fa', border: '1px solid #d1e9f0', borderRadius: '20px', padding: '0.2rem 0.8rem', fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 600 }}>{tag}</span>
+                          ))}
+                        </div>
+                      </div>
+                      {medResult.description && (
+                        <p style={{ marginTop: '1rem', marginBottom: 0, fontSize: '0.92rem', color: '#475569', lineHeight: 1.6 }}>{medResult.description}</p>
+                      )}
+                    </div>
+
+                    {/* 2×2 info grid */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>
+                      {/* USES */}
+                      <div style={{ border: '1px solid var(--border-color)', borderRadius: '14px', padding: '1.25rem', background: 'white' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.85rem' }}>
+                          <div style={{ width: 28, height: 28, background: '#e8f7f9', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
+                          </div>
+                          <span style={{ fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--text-muted)' }}>Uses</span>
+                        </div>
+                        <ul style={{ margin: 0, paddingLeft: 0, listStyle: 'none' }}>
+                          {medResult.uses?.map((u: string) => (
+                            <li key={u} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '0.5rem', fontSize: '0.88rem', color: '#334155', lineHeight: 1.5 }}>
+                              <span style={{ color: 'var(--primary)', fontWeight: 900, marginTop: '2px', flexShrink: 0 }}>•</span>{u}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      {/* SIDE EFFECTS */}
+                      <div style={{ border: '1px solid #fef3c7', borderRadius: '14px', padding: '1.25rem', background: '#fffdf5' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.85rem' }}>
+                          <div style={{ width: 28, height: 28, background: '#fef3c7', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                          </div>
+                          <span style={{ fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: '#92400e' }}>Side Effects</span>
+                        </div>
+                        <ul style={{ margin: 0, paddingLeft: 0, listStyle: 'none' }}>
+                          {medResult.side_effects?.map((s: string) => (
+                            <li key={s} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '0.5rem', fontSize: '0.88rem', color: '#334155', lineHeight: 1.5 }}>
+                              <span style={{ color: '#d97706', fontWeight: 900, marginTop: '2px', flexShrink: 0 }}>•</span>{s}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      {/* PRECAUTIONS */}
+                      <div style={{ border: '1px solid #dbeafe', borderRadius: '14px', padding: '1.25rem', background: '#f0f7ff' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.85rem' }}>
+                          <div style={{ width: 28, height: 28, background: '#dbeafe', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                          </div>
+                          <span style={{ fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: '#1d4ed8' }}>Precautions</span>
+                        </div>
+                        <ul style={{ margin: 0, paddingLeft: 0, listStyle: 'none' }}>
+                          {medResult.precautions?.map((p: string) => (
+                            <li key={p} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '0.5rem', fontSize: '0.88rem', color: '#334155', lineHeight: 1.5 }}>
+                              <span style={{ color: '#2563eb', fontWeight: 900, marginTop: '2px', flexShrink: 0 }}>•</span>{p}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      {/* WARNINGS */}
+                      <div style={{ border: '1px solid #fecaca', borderRadius: '14px', padding: '1.25rem', background: '#fff5f5' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.85rem' }}>
+                          <div style={{ width: 28, height: 28, background: '#fee2e2', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                          </div>
+                          <span style={{ fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: '#b91c1c' }}>Warnings</span>
+                        </div>
+                        <ul style={{ margin: 0, paddingLeft: 0, listStyle: 'none' }}>
+                          {medResult.warnings?.map((w: string) => (
+                            <li key={w} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '0.5rem', fontSize: '0.88rem', color: '#334155', lineHeight: 1.5 }}>
+                              <span style={{ color: '#dc2626', fontWeight: 900, marginTop: '2px', flexShrink: 0 }}>•</span>{w}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+
+                    {/* Related medicines + actions */}
+                    {medResult.related_medicines && (
+                      <div style={{ marginBottom: '1rem' }}>
+                        <div style={{ fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--text-muted)', marginBottom: '0.6rem' }}>Related / Alternatives</div>
+                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                          {medResult.related_medicines.map((m: string) => (
+                            <span key={m} className="dict-tag" onClick={() => lookupMedicine(m)}>{m}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <button onClick={() => { setMedResult(null); setMedName(''); }} style={{ background: 'none', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '0.55rem 1.2rem', cursor: 'pointer', fontSize: '0.88rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>← Search another medicine</button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ---- Medical Dictionary Modal ---- */}
+        {showDictModal && (
+          <div className="external-triage-overlay" onClick={(e) => { if (e.target === e.currentTarget) { setShowDictModal(false); setDictResult(null); setDictTerm(''); } }}>
+            <div className="external-triage-modal" style={{ maxWidth: '800px', height: 'auto', maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+              <div className="external-modal-header">
+                <div className="modal-brand">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2.5"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                  <span>Medical Dictionary</span>
+                </div>
+                <button className="btn-close-external" onClick={() => { setShowDictModal(false); setDictResult(null); setDictTerm(''); }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                  Close
+                </button>
+              </div>
+              <div style={{ padding: '2.5rem', overflowY: 'auto', flex: 1, background: '#f8fafc' }}>
+                <div style={{ marginBottom: '2rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                    <h2 style={{ fontSize: '2rem', fontWeight: 900, color: '#0f172a', margin: 0 }}>Medical Dictionary</h2>
+                  </div>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '1rem', marginLeft: '3rem' }}>Search any medical term to get a clear, structured explanation.</p>
+                </div>
+                
+                <div className="extra-search-box" style={{ marginBottom: '1rem', background: 'white', border: '1px solid var(--border-color)', borderRadius: '50px', padding: '0.5rem', display: 'flex', alignItems: 'center', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2" style={{ marginLeft: '1rem', flexShrink: 0 }}><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                  <input 
+                    type="text" 
+                    placeholder="Search diseases, symptoms, tests, or medical terms" 
+                    value={dictTerm} 
+                    onChange={(e) => setDictTerm(e.target.value)} 
+                    onKeyPress={(e) => e.key === 'Enter' && lookupDictionary()} 
+                    autoFocus 
+                    style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', padding: '0.75rem 1rem', fontSize: '1rem' }}
+                  />
+                  <button onClick={() => lookupDictionary()} disabled={loading} style={{ background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '40px', padding: '0.75rem 2rem', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s' }}>
+                    {loading ? 'Searching...' : 'Search'}
+                  </button>
+                </div>
+                
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', marginBottom: '2.5rem', marginLeft: '1rem', fontSize: '0.85rem' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>Try:</span>
+                  <div style={{ display: 'flex', gap: '1.5rem' }}>
+                    {['diabetes', 'hypertension', 'MRI', 'anemia'].map(t => (
+                      <span key={t} onClick={() => lookupDictionary(t)} style={{ color: 'var(--primary)', cursor: 'pointer', transition: 'opacity 0.2s' }} onMouseEnter={e => e.currentTarget.style.opacity = '0.7'} onMouseLeave={e => e.currentTarget.style.opacity = '1'}>{t}</span>
+                    ))}
+                  </div>
+                </div>
+
+                {!dictResult ? (
+                  <div style={{ background: 'white', border: '1px solid var(--border-color)', borderRadius: '16px', padding: '4rem 2rem', textAlign: 'center', boxShadow: '0 4px 20px rgba(0,0,0,0.02)' }}>
+                    <div style={{ display: 'inline-flex', justifyContent: 'center', alignItems: 'center', marginBottom: '1.5rem' }}>
+                      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                    </div>
+                    <h3 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#0f172a', marginBottom: '0.75rem' }}>Search any medical term to learn more</h3>
+                    <p style={{ color: 'var(--text-muted)', maxWidth: '500px', margin: '0 auto 2.5rem', lineHeight: 1.6 }}>Get reliable, structured information on diseases, symptoms, diagnostic tests, and treatments.</p>
+                    <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                      {['Diabetes', 'Hypertension', 'MRI', 'Anemia'].map(t => (
+                        <button key={t} onClick={() => lookupDictionary(t)} style={{ background: 'white', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '0.75rem 2.5rem', fontSize: '0.95rem', fontWeight: 700, color: '#0f172a', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 2px 5px rgba(0,0,0,0.02)' }}
+                          onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--primary)'}
+                          onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-color)'}>
+                          {t}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : dictResult.error ? (
+                  <div style={{ textAlign: 'center', padding: '3rem 1rem', background: 'white', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
+                    <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📖</div>
+                    <p style={{ color: '#dc2626', fontWeight: 600, marginBottom: '1rem' }}>{dictResult.error}</p>
+                    <button onClick={() => { setDictResult(null); setDictTerm(''); }} style={{ background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '10px', padding: '0.6rem 1.5rem', cursor: 'pointer', fontWeight: 600 }}>← Try Again</button>
+                  </div>
+                ) : (
+                  <div className="dict-result-card fade-in" style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.03)', background: 'white', borderRadius: '16px', border: '1px solid var(--border-color)', padding: '2.5rem' }}>
+                    <div className="dict-term-header" style={{ marginBottom: '2rem' }}>
+                      <h2 className="dict-term" style={{ fontSize: '2.5rem', fontWeight: 900, color: '#0f172a', margin: '0 0 0.5rem 0' }}>{dictResult.term}</h2>
+                      <span className="dict-phonetic" style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>{dictResult.phonetic}</span>
+                    </div>
+                    <div className="dict-section" style={{ background: '#f8fafc', padding: '1.5rem', borderRadius: '12px', marginBottom: '1.5rem' }}>
+                      <div className="dict-section-label" style={{ color: 'var(--primary)', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '1px', marginBottom: '0.75rem' }}>Simple Definition</div>
+                      <p className="dict-text" style={{ fontSize: '1.1rem', color: '#334155', lineHeight: 1.6, margin: 0 }}>{dictResult.simple_definition}</p>
+                    </div>
+                    <div className="dict-section" style={{ background: 'white', border: '1px solid var(--border-color)', padding: '1.5rem', borderRadius: '12px', marginBottom: '1.5rem' }}>
+                      <div className="dict-section-label" style={{ color: '#0f172a', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '1px', marginBottom: '0.75rem' }}>Clinical Context</div>
+                      <p className="dict-text" style={{ fontSize: '1rem', color: '#475569', lineHeight: 1.6, margin: 0 }}>{dictResult.clinical_definition}</p>
+                    </div>
+                    <div className="dict-section" style={{ background: 'white', border: '1px solid var(--border-color)', padding: '1.5rem', borderRadius: '12px', marginBottom: '2rem' }}>
+                      <div className="dict-section-label" style={{ color: '#0f172a', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '1px', marginBottom: '0.75rem' }}>Usage & Context</div>
+                      <p className="dict-text" style={{ fontSize: '1rem', color: '#475569', lineHeight: 1.6, margin: 0 }}>{dictResult.context}</p>
+                    </div>
+                    {dictResult.related_terms && (
+                      <div>
+                        <div className="dict-section-label" style={{ color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '1px', marginBottom: '0.75rem' }}>Related Terms</div>
+                        <div className="dict-tags" style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                          {dictResult.related_terms.map((t: string) => (
+                            <span key={t} className="dict-tag" onClick={() => lookupDictionary(t)} style={{ background: '#f1f5f9', color: 'var(--primary)', padding: '0.5rem 1.2rem', borderRadius: '50px', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}
+                              onMouseEnter={e => {e.currentTarget.style.background = 'var(--primary)'; e.currentTarget.style.color = 'white';}}
+                              onMouseLeave={e => {e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.color = 'var(--primary)';}}>
+                              {t}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {showExternalTriage && (
           <div className="external-triage-overlay">
