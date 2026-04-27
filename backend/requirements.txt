@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+pydantic
+openai
+python-dotenv
+supabase
+reportlab
+python-multipart
+jinja2

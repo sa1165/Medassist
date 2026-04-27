@@ -1,0 +1,91 @@
+{
+    "features": {
+        "primary_symptom": {
+            "type": "categorical",
+            "options": [
+                "chest_pain",
+                "fever",
+                "vomiting",
+                "headache",
+                "shortness_of_breath",
+                "abdominal_pain",
+                "sore_throat",
+                "cough",
+                "dizziness"
+            ]
+        },
+        "severity_score": {
+            "type": "integer",
+            "range": [
+                1,
+                10
+            ]
+        },
+        "duration_category": {
+            "type": "categorical",
+            "options": [
+                "short",
+                "medium",
+                "long"
+            ]
+        },
+        "frequency": {
+            "type": "categorical",
+            "options": [
+                "rare",
+                "frequent",
+                "persistent"
+            ]
+        },
+        "age_group": {
+            "type": "categorical",
+            "options": [
+                "child",
+                "adult",
+                "elderly"
+            ]
+        },
+        "breathlessness_level": {
+            "type": "categorical",
+            "options": [
+                "none",
+                "mild",
+                "severe"
+            ]
+        },
+        "vomiting_severity": {
+            "type": "categorical",
+            "options": [
+                "none",
+                "mild",
+                "severe"
+            ]
+        },
+        "fever_level": {
+            "type": "categorical",
+            "options": [
+                "none",
+                "mild",
+                "high"
+            ]
+        },
+        "pain_type": {
+            "type": "categorical",
+            "options": [
+                "sharp",
+                "dull",
+                "none"
+            ]
+        }
+    },
+    "target": {
+        "urgency": {
+            "type": "categorical",
+            "options": [
+                "Low",
+                "Moderate",
+                "High"
+            ]
+        }
+    }
+}
