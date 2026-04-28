@@ -30,10 +30,11 @@ class GrokBrain:
         - Even if it's ambiguous (like "CC"), if the context isn't medical, REJECT it.
         
         RESPONSE TYPE RULE:
+        - Use "emergency" if the query describes a critical, life-threatening situation (e.g., heart attack, stroke, severe bleeding, breathing difficulty).
         - Use "structured" for comprehensive queries (e.g., "how to...", "explain...", "treatment for...") to provide deep clinical sections.
         - Use "conversational" for short questions, greetings, or quick clarifications.
         
-        Return JSON: {{ "status": "allowed" | "rejected", "response_type": "structured" | "conversational", "rejection_message": "I am a dedicated medical clinical support system. I only provide assistance with symptoms, diseases, medications, and medical education. I cannot answer queries about non-medical topics like [topic]." }}
+        Return JSON: {{ "status": "allowed" | "rejected", "response_type": "emergency" | "structured" | "conversational", "rejection_message": "I am a dedicated medical clinical support system. I only provide assistance with symptoms, diseases, medications, and medical education. I cannot answer queries about non-medical topics like [topic]." }}
         """
 
         try:
@@ -75,8 +76,21 @@ class GrokBrain:
             - Use bullet points if listing more than 2 items.
             """
             
-            mode_instr = "(CRITICAL: USE THE STRUCTURED TEMPLATE)" if response_type == "structured" else "(CRITICAL: DO NOT USE SECTION HEADERS. BUT REMAIN EXPANSIVE.)"
-            active_template = structured_template if response_type == "structured" else conversational_template
+            emergency_template = """EMERGENCY MODE:
+            - This is a critical medical emergency. DO NOT provide a lengthy clinical explanation.
+            - Urge the user to call emergency services (like 108 or 911) IMMEDIATELY.
+            - Provide very brief, critical first-aid instructions if applicable (e.g., stay calm, keep them seated, start CPR if unconscious).
+            - Keep the tone urgent but calm, and the response concise."""
+            
+            if response_type == "emergency":
+                mode_instr = "(CRITICAL: EMERGENCY PROTOCOL ACTIVATED. KEEP IT CONCISE AND URGENT. DO NOT GIVE LONG EXPLANATIONS.)"
+                active_template = emergency_template
+            elif response_type == "structured":
+                mode_instr = "(CRITICAL: USE THE STRUCTURED TEMPLATE)"
+                active_template = structured_template
+            else:
+                mode_instr = "(CRITICAL: DO NOT USE SECTION HEADERS. BUT REMAIN EXPANSIVE.)"
+                active_template = conversational_template
             
             system_prompt = f"""
             YOU ARE THE MEDASSIST AI CLINICAL SUPPORT SYSTEM.
@@ -98,6 +112,9 @@ class GrokBrain:
             
             6. **CLINICAL INTAKE MODE (PILLAR #2)**:
                - If a user reports a symptom but it is VAGUE (e.g. "I have pain"), you MUST ask for: **Location**, **Severity (1-10)**, **Duration**, and **Associated Symptoms**.
+               
+            7. **EMERGENCY ESCALATION**:
+               - If this is an emergency, SKIP detailed clinical explanations. Prioritize urgent instructions to seek immediate medical help.
             
             ### RESPONSE MODE: {response_type.upper()} ###
             {mode_instr}
