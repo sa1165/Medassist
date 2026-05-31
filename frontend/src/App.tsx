@@ -117,6 +117,8 @@ const ASSOCIATED_OPTIONS = [
   { id: 'nausea', label: 'Nausea' },
 ];
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
 function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [view, setView] = useState<'portfolio' | 'login' | 'register' | 'app' | 'dictionary' | 'medicine'>('portfolio');
@@ -203,7 +205,7 @@ function App() {
     };
 
     try {
-      const res = await fetch('http://localhost:8000/chat', {
+      const res = await fetch(`${API_URL}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -263,7 +265,7 @@ function App() {
   const handleSubmit = async () => {
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:8000/predict', {
+      const response = await fetch(`${API_URL}/predict`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
@@ -285,7 +287,7 @@ function App() {
     setLoading(true);
     setDictTerm(search);
     try {
-      const res = await fetch('http://localhost:8000/dictionary', {
+      const res = await fetch(`${API_URL}/dictionary`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ term: search }),
@@ -306,7 +308,7 @@ function App() {
     setMedResult(null);
     setMedName(search);
     try {
-      const res = await fetch('http://localhost:8000/medicine', {
+      const res = await fetch(`${API_URL}/medicine`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: search }),
@@ -338,7 +340,7 @@ function App() {
     setLoading(true);
     try {
       const endpoint = type === 'login' ? '/auth/login' : '/auth/register';
-      const response = await fetch(`http://localhost:8000${endpoint}`, {
+      const response = await fetch(`${API_URL}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(authForm),
@@ -859,7 +861,7 @@ function App() {
           <div className="fade-in" style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <div style={{ width: '100%', maxWidth: '900px', display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
               <button className="btn-secondary" onClick={() => setStep(8)}>← Back to results</button>
-              <button className="btn-next" onClick={() => window.open(`http://localhost:8000/report?urgency=${result.final_urgency}&explanation=${encodeURIComponent(result.ai_explanation.narrative)}`, '_blank')}>
+              <button className="btn-next" onClick={() => window.open(`${API_URL}/report?urgency=${result.final_urgency}&explanation=${encodeURIComponent(result.ai_explanation.narrative)}`, '_blank')}>
                 Download PDF
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
               </button>

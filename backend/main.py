@@ -104,6 +104,44 @@ def login(data: dict):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+@app.get("/report")
+def get_report(urgency: str, explanation: str):
+    try:
+        # Construct placeholders for missing details
+        data = {
+            "primary_symptom": "Not Specified",
+            "severity_score": 0,
+            "duration_category": "Not Specified",
+            "age_group": "Not Specified",
+            "frequency": "Not Specified",
+            "breathlessness_level": "Not Specified",
+            "vomiting_severity": "Not Specified",
+            "fever_level": "Not Specified",
+            "pain_type": "Not Specified"
+        }
+        decision = {
+            "final_urgency": urgency,
+            "rule_output": {
+                "matching_rule": "Report Export",
+                "logic": "Generated from assessment results"
+            }
+        }
+        explanation_data = {
+            "narrative": explanation,
+            "first_aid": "Please refer to the clinical suggestions page or consult a healthcare professional.",
+            "medicine_info": "Not specified in general summary.",
+            "recommendation": "Consult a healthcare provider."
+        }
+        
+        filename = report_generator.generate_pdf(data, decision, explanation_data)
+        
+        if os.path.exists(filename):
+            return FileResponse(filename, media_type="application/pdf", filename="MedAssist_Report.pdf")
+        else:
+            raise HTTPException(status_code=500, detail="Failed to generate report file")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/download-report/{filename:path}")
 def download_report(filename: str):
     if os.path.exists(filename):
