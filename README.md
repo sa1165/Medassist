@@ -1,4 +1,4 @@
-# MedAssist v2
+# MedAssist v2 - https://huggingfacesan-medassist.hf.space/
 
 <div align="center">
   <img src="frontend/src/medassist_logo.png" alt="MedAssist Logo" width="200"/>
@@ -68,8 +68,7 @@ npm install
 npm run dev
 ```
 
-The application will be accessible at `http://localhost:3015`.
-
+The application will be accessible at https://huggingfacesan-medassist.hf.space/
 ---
 
 ## 📂 Project Organization
