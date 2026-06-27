@@ -86,9 +86,7 @@ MedAssist v2 solves this with **5+ dedicated API pipelines**, each with a specif
 ### 🔐 Login
 > Clean authentication with Supabase — email/password with sign up flow.
 
-<p align="center">
-  <img src="./screenshots/ma_login.png" width="700" alt="Login Page"/>
-</p>
+<img width="1303" height="703" alt="image" src="https://github.com/user-attachments/assets/3abc8533-aa3a-4804-9b2a-93d489747069" />
 
 ---
 
